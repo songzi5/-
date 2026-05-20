@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전기 회로 타워디펜스 : 오버로드 V2</title>
+    <style>
+        :root {
+            --bg-color: #0c0f12;
+            --panel-bg: #161b22;
+            --border-color: #30363d;
+            --text-color: #c9d1d9;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-gold: #d4bbff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace, 'Malgun Gothic', sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .terminal {
+            background-color: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+
+        .header-line {
+            border-bottom: 2px double var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .circuit-board {
+            background-color: rgba(0,0,0,0.2);
+            border: 1px dashed var(--border-color);
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .circuit-node {
+            color: var(--accent-blue);
+            font-weight: bold;
+        }
+
+        .circuit-resistor {
+            background-color: #21262d;
+            border: 1px solid var(--accent-blue);
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin: 0 5px;
+            display: inline-block;
+        }
+
+        .info-panel {
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            color: var(--accent-blue);
+            font-weight: bold;
+        }
+
+        .result-panel {
+            background-color: rgba(0,0,0,0.4);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .result-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        .menu {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            background-color: #21262d;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        button:hover {
+            background-color: #30363d;
+            border-color: #8b949e;
+        }
+
+        button:active {
+            background-color: #282e38;
+        }
+
+        button.action-btn {
+            background-color: #238636;
+            color: white;
+            border-color: rgba(240,246,252,0.1);
+            text-align: center;
+            font-weight: bold;
+        }
+
+        button.action-btn:hover {
+            background-color: #2ea043;
+        }
+
+        .status-msg {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .success { color: var(--accent-green); }
+        .danger { color: var(--accent-red); }
+        .warning { color: var(--accent-gold); }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            padding: 25px;
+            border-radius: 6px;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .modal-btn {
+            margin-top: 20px;
+            background-color: var(--accent-blue);
+            color: #000;
+            font-weight: bold;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            display: inline-block;
+        }
+        .modal-btn:hover {
+            background-color: #79c0ff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="terminal">
+    <div class="header-line">
+        <div>[ROUND <span id="lbl-round">1</span>]</div>
+        <div>기지 체력(HP): <span id="lbl-hp" class="success">100/100</span></div>
+        <div>보유 골드: <span id="lbl-gold" style="color: #e3b341;">400G</span></div>
+    </div>
+
+    <div class="info-panel">
+        <strong>[ 실시간 전기 회로 설계도 ]</strong>
+    </div>
+
+    <div class="circuit-board" id="circuit-map">
+        <!-- JS가 동적으로 생성 -->
+    </div>
+
+    <div class="info-panel">
+        <div>▶ 현재 저항 연결 방식: <span id="lbl-mode" class="highlight">직렬 연결</span></div>
+        <div>▶ 계산된 총 합성저항: <span id="lbl-total-res" class="highlight">10.00</span> 옴</div>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
+
+    <div class="info-panel">
+        <strong>[★ 시스템 전류 분석기 ★]</strong>
+        <div style="margin-top: 5px;">▶ 회로에 흐르는 전류 : <span id="lbl-current" style="color: #ff7b72; font-weight: bold;">1.20 A</span></div>
+        <div class="warning" style="margin-top: 5px;">※ 타워의 안전 전류 범위는 비밀입니다. 물리학Ⅱ 공식에 맞춰 저항을 설계하세요!</div>
+    </div>
+
+    <!-- 결과 판정 판넬 -->
+    <div class="result-panel" id="result-box">
+        <div class="result-title">=============== [ 라운드 결과 확인 ] ===============</div>
+        <div style="margin-bottom: 8px;">▶ 타워 요구 범위: <span id="res-target" class="highlight">0.50 A ~ 0.80 A</span></div>
+        <div style="margin-bottom: 8px;">▶ 현재 설계 전류: <span id="res-current" style="color: #ff7b72; font-weight: bold;">1.20 A</span></div>
+        <div id="res-msg" class="status-msg"></div>
+    </div>
+
+    <div class="info-panel" id="wait-msg" style="text-align: center; color: #8b949e; font-size: 0.9rem;">
+        [대기] 1~3번으로 설계를 변경하고, 완료되면 '턴 넘기기'를 누르세요.
+    </div>
+
+    <div class="menu">
+        <button onclick="addResistor()">1. 저항 추가 (100G)</button>
+        <button onclick="removeResistor()">2. 저항 제거 (50G)</button>
+        <button onclick="toggleConnection()">3. 직/병렬 전환 (30G)</button>
+        <button onclick="passTurn()" class="action-btn" id="btn-action">4. 턴 넘기기 (설계완료)</button>
+    </div>
+</div>
+
+<!-- 게임오버/시스템 리부트 모달 -->
+<div class="modal" id="gameover-modal">
+    <div class="modal-content">
+        <h2 class="danger" style="margin-top:0;">[GAME OVER]</h2>
+        <p>시스템 마비로 기지가 결국 파괴되었습니다!</p>
+        <p style="font-size: 1.1rem; font-weight: bold; color: var(--accent-gold);">
+            하지만 메인 제어장치를 재부팅하여<br>다음 라운드로 강제 진입합니다.
+        </p>
+        <button class="modal-btn" onclick="closeModal()">시스템 리부트 수행</button>
+    </div>
+</div>
+
+<script>
+    // 게임 상태 변수
+    let gameState = {
+        base_hp: 100,
+        gold: 400,
+        round: 0,
+        voltage: 12,
+        min_safe_current: 0.3,
+        max_safe_current: 0.6,
+        resistors: [10.0],
+        is_series: true,
+        phase: 'edit' // 'edit' 또는 'result'
+    };
+
+    const COST_ADD = 100;
+    const COST_REMOVE = 50;
+    const COST_TOGGLE = 30;
+
+    // 새로운 라운드 초기화
+    function initNextRound() {
+        gameState.round++;
+        gameState.base_hp = 100;
+        if (gameState.round > 1) {
+            gameState.gold += 200;
+        }
+
+        // 전압 생성 (12, 18, 24, 30 중 랜덤)
+        const voltages = [12, 18, 24, 30];
+        gameState.voltage = voltages[Math.floor(Math.random() * voltages.length)];
+
+        // 비밀 안전 전류 범위 설정
+        gameState.min_safe_current = (Math.floor(Math.random() * 6) + 3) / 10.0; // 0.3 ~ 0.8
+        gameState.max_safe_current = gameState.min_safe_current + (Math.floor(Math.random() * 5) + 3) / 10.0;
+
+        // 저항 초기화
+        gameState.resistors = [10.0];
+        gameState.is_series = true;
+        gameState.phase = 'edit';
+
+        document.getElementById('result-box').style.display = 'none';
+        document.getElementById('wait-msg').style.display = 'block';
+        document.getElementById('btn-action').textContent = '4. 턴 넘기기 (설계완료)';
+        document.getElementById('btn-action').className = 'action-btn';
+
+        updateUI();
+    }
+
+    // 연산 및 UI 갱신
+    function updateUI() {
+        // 합성 저항 계산
+        let total_resistance = 0;
+        if (gameState.resistors.length === 0) {
+            total_resistance = 9999.0;
+        } else {
+            if (gameState.is_series) {
+                for (let r of gameState.resistors) {
+                    total_resistance += r;
+                }
+            } else {
+                let temp = 0;
+                for (let r of gameState.resistors) {
+                    if (r > 0) temp += (1.0 / r);
+                }
+                total_resistance = temp > 0 ? (1.0 / temp) : 0.1;
+            }
+        }
+
+        // 전류 계산
+        let current = gameState.voltage / total_resistance;
+
+        // UI 텍스트 반영
+        document.getElementById('lbl-round').textContent = gameState.round;
+        
+        const hpEl = document.getElementById('lbl-hp');
+        hpEl.textContent = gameState.base_hp + '/100';
+        if (gameState.base_hp > 50) hpEl.className = 'success';
+        else if (gameState.base_hp > 25) hpEl.className = 'warning';
+        else hpEl.className = 'danger';
+
+        document.getElementById('lbl-gold').textContent = gameState.gold + 'G';
+        document.getElementById('lbl-mode').textContent = gameState.is_series ? '직렬 연결' : '병렬 연결';
+        document.getElementById('lbl-total-res').textContent = total_resistance.toFixed(2);
+        document.getElementById('lbl-current').textContent = current.toFixed(2) + ' A';
+
+        // 회로도 문자열 렌더링
+        let circuitHtml = `<span class="circuit-node">(배터리 전압: ${gameState.voltage}V)</span> --- `;
+        if (gameState.is_series) {
+            gameState.resistors.forEach((r, idx) => {
+                circuitHtml += `<span class="circuit-resistor">R${idx+1}: ${r}옴</span> --- `;
+            });
+        } else {
+            circuitHtml += `<span class="circuit-node">[병렬 배선 블록: `;
+            gameState.resistors.forEach((r, idx) => {
+                circuitHtml += `${r}옴` + (idx < gameState.resistors.length - 1 ? ' // ' : '');
+            });
+            circuitHtml += `]</span> --- `;
+        }
+        circuitHtml += `<span class="circuit-node">(GND)</span>`;
+        document.getElementById('circuit-map').innerHTML = circuitHtml;
+
+        return { total_resistance, current };
+    }
+
+    // 1. 저항 추가
+    function addResistor() {
+        if (gameState.phase !== 'edit') return;
+        if (gameState.resistors.length >= 5) {
+            alert("회로에 더 이상 저항을 연결할 자리가 없습니다! (최대 5개)");
+            return;
+        }
+        if (gameState.gold < COST_ADD) {
+            alert("골드가 부족합니다!");
+            return;
+        }
+
+        let val = prompt("추가할 부품의 저항값을 입력하세요 (옴 단위, 추천: 5 ~ 40):", "10");
+        if (val === null) return;
+        let num = parseFloat(val);
+        if (isNaN(num) || num <= 0) {
+            alert("올바른 저항값을 입력해주세요.");
+            return;
+        }
+
+        gameState.resistors.push(num);
+        gameState.gold -= COST_ADD;
+        updateUI();
+    }
+
+    // 2. 저항 제거
+    function removeResistor() {
+        if (gameState.phase !== 'edit') return;
+        if (gameState.resistors.length <= 0) {
+            alert("제거할 저항 부품이 없습니다.");
+            return;
+        }
+        if (gameState.gold < COST_REMOVE) {
+            alert("골드가 부족하여 저항을 제거할 수 없습니다!");
+            return;
+        }
+
+        gameState.resistors.pop();
+        gameState.gold -= COST_REMOVE;
+        updateUI();
+    }
+
+    // 3. 직/병렬 전환
+    function toggleConnection() {
+        if (gameState.phase !== 'edit') return;
+        if (gameState.gold < COST_TOGGLE) {
+            alert("골드가 부족하여 연결 방식을 바꿀 수 없습니다!");
+            return;
+        }
+
+        gameState.is_series = !gameState.is_series;
+        gameState.gold -= COST_TOGGLE;
+        updateUI();
+    }
+
+    // 4. 턴 넘기기 / 다음 단계
+    function passTurn() {
+        if (gameState.phase === 'result') {
+            // 결과 확인 창에서 다음 액션으로 넘어갈 때
+            if (gameState.base_hp <= 0) {
+                document.getElementById('gameover-modal').style.display = 'flex';
+            } else {
+                // 생존 상태인데 성공한 경우에만 라운드 증가
+                const calc = updateUI();
+                if (calc.current >= gameState.min_safe_current && calc.current <= gameState.max_safe_current) {
+                    initNextRound();
+                } else {
+                    // 실패했지만 피가 남았으면 재도전 페이즈로 복귀
+                    gameState.phase = 'edit';
+                    document.getElementById('result-box').style.display = 'none';
+                    document.getElementById('wait-msg').style.display = 'block';
+                    document.getElementById('btn-action').textContent = '4. 턴 넘기기 (설계완료)';
+                    document.getElementById('btn-action').className = 'action-btn';
+                    updateUI();
+                }
+            }
+            return;
+        }
+
+        // 판정 계산 시작
+        gameState.phase = 'result';
+        const calc = updateUI();
+        
+        document.getElementById('res-target').textContent = `${gameState.min_safe_current.toFixed(2)} A ~ ${gameState.max_safe_current.toFixed(2)} A`;
+        document.getElementById('res-current').textContent = `${calc.current.toFixed(2)} A`;
+
+        const msgEl = document.getElementById('res-msg');
+        const btnAction = document.getElementById('btn-action');
+
+        if (calc.current >= gameState.min_safe_current && calc.current <= gameState.max_safe_current) {
+            msgEl.textContent = " [성공] 안전 범위 안착! 타워가 정상 가동되어 완벽하게 방어했습니다!";
+            msgEl.className = "status-msg success";
+            btnAction.textContent = "클리어! 다음 라운드 시작";
+            btnAction.className = "action-btn";
+        } else if (calc.current > gameState.max_safe_current) {
+            gameState.base_hp -= 25;
+            msgEl.textContent = " [실패] 과부하(OVERLOAD) 발생! 과전류로 타워가 파괴되어 기지가 손상되었습니다!";
+            msgEl.className = "status-msg danger";
+            btnAction.textContent = gameState.base_hp <= 0 ? "결과 처리 (기지 파괴)" : "재도전 하기 (수정 필요)";
+            btnAction.className = "action-btn";
+        } else {
+            gameState.base_hp -= 25;
+            msgEl.textContent = " [실패] 전류 부족! 전력이 약해 타워가 작동하지 않아 침공을 허용했습니다!";
+            msgEl.className = "status-msg warning";
+            btnAction.textContent = gameState.base_hp <= 0 ? "결과 처리 (기지 파괴)" : "재도전 하기 (수정 필요)";
+            btnAction.className = "action-btn";
+        }
+
+        // UI 갱신해서 깎인 체력 즉시 반영
+        updateUI();
+
+        document.getElementById('wait-msg').style.display = 'none';
+        document.getElementById('result-box').style.display = 'block';
+    }
+
+    // 모달 닫기 및 시스템 리부트
+    function closeModal() {
+        document.getElementById('gameover-modal').style.display = 'none';
+        initNextRound();
+    }
+
+    // 게임 시작 시 첫 라운드 가동
+    window.onload = function() {
+        initNextRound();
+    };
+</script>
+
+</body>
+</html>
